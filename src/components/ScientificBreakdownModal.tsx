@@ -202,10 +202,10 @@ export const ScientificBreakdownModal: React.FC<ScientificBreakdownModalProps> =
             {/* Scientific Macro Distribution Grid */}
             <div className="grid grid-cols-3 gap-2 pt-1">
               <div className="bg-slate-900 border border-emerald-500/30 p-2.5 rounded-xl text-center">
-                <span className="text-[10px] text-slate-400 block font-semibold">البروتين المستهدف</span>
+                <span className="text-[10px] text-slate-400 block font-semibold">البروتين (مبني على LBM)</span>
                 <span className="text-sm font-extrabold text-emerald-400 font-mono">{details.proteinGrams}g</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5 font-mono">
-                  ({details.proteinMultiplier}g لكل كجم وزن)
+                  ({details.proteinMultiplierLBM}g / kg LBM)
                 </span>
               </div>
 
@@ -221,9 +221,40 @@ export const ScientificBreakdownModal: React.FC<ScientificBreakdownModalProps> =
                 <span className="text-[10px] text-slate-400 block font-semibold">الكارب الأساسي (المتوسط)</span>
                 <span className="text-sm font-extrabold text-amber-400 font-mono">{details.baseCarbGrams}g</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5 font-mono">
-                  (المتبقي من السعرات)
+                  ({(details.baseCarbGrams / details.lbmKg).toFixed(1)}g / kg LBM)
                 </span>
               </div>
+            </div>
+
+            {/* Exercise Physiology & Glycogen Depletion Metrics Panel */}
+            <div className="bg-slate-900 border border-purple-800/60 p-3 rounded-xl space-y-2 mt-2">
+              <span className="font-extrabold text-purple-200 block text-xs border-b border-slate-800 pb-1">
+                🧬 محرك فسيولوجيا الجليكوجين وتكيّف هرمون اللبتين (Leptin & Glycogen Physiology):
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[10px] font-mono">
+                <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block text-[9px]">سعة الجليكوجين العضلي</span>
+                  <span className="text-purple-300 font-extrabold">{details.phys.muscleGlycogenCapacityG}g</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block text-[9px]">سعة الجليكوجين الكبدي</span>
+                  <span className="text-amber-300 font-bold">{details.phys.liverGlycogenCapacityG}g</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block text-[9px]">استهلاك التمرين الثقيل</span>
+                  <span className="text-emerald-400 font-bold font-mono">~{details.phys.heavyLegWorkoutDepletionG}g</span>
+                </div>
+                <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block text-[9px]">استهلاك الدماغ اليومي</span>
+                  <span className="text-blue-300 font-bold">{details.phys.basalBrainGlucoseNeedG}g</span>
+                </div>
+              </div>
+
+              {details.phys.obesityInsulinCapActive && (
+                <div className="bg-amber-950/40 border border-amber-600/40 p-2 rounded-lg text-[10px] text-amber-200">
+                  ⚠️ <strong>تفعيل سقف الحساسية للإنسولين:</strong> نظراً لارتفاع نسبة الدهون ({details.bodyFatPctUsed}%)، تم وضع سقف أمان حاسم على كميات الكارب المرتفعة لمنع مقاومة الإنسولين ولتسريع حرق الشحوم.
+                </div>
+              )}
             </div>
           </div>
 

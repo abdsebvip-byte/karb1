@@ -21,6 +21,9 @@ export interface UserProfile {
   bodyFatPct?: number;
   workoutDays?: number[]; // indices 0=Sat, 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri
   heavyWorkoutDays?: number[]; // indices of high-intensity / heavy leg/back days
+  weeksInDeficit?: number; // weeks currently in caloric deficit (e.g. 0-24)
+  weeklyTrainingSets?: number; // total weekly working sets (e.g. 16-28)
+  avgRPE?: number; // 7-10 Rating of Perceived Exertion
   notes?: string;
 }
 
@@ -39,8 +42,23 @@ export interface DayPlan {
   fat: number; // in grams
   calories: number;
   workoutFocus: string;
+  targetMuscleGroup?: string;
   recommendedCarbSources: string[];
   isWorkout?: boolean;
+  carbMultiplier?: number;
+  scientificRationale?: string;
+  bodyFatTierLabel?: string;
+  activityTierLabel?: string;
+  carbsPerLbmKg?: number;
+  proteinPerLbmKg?: number;
+  fatPerLbmKg?: number;
+  estimatedGlycogenDepletionG?: number;
+  glycogenRestorationTargetG?: number;
+  refeedEligibilityStatus?: string;
+  energyAvailability?: number; // EA in kcal / kg LBM / day
+  eaCategory?: 'low' | 'optimal_fatloss' | 'hypertrophy';
+  adaptiveTdee?: number;
+  exerciseEnergyExpenditure?: number; // EEE in kcal
 }
 
 export interface MealItem {

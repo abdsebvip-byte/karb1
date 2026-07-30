@@ -12,6 +12,9 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
   fastingType: '16:8',
   targetWeightKg: 78,
   bodyFatPct: 16,
+  weeksInDeficit: 4,
+  weeklyTrainingSets: 20,
+  avgRPE: 8.5,
   notes: 'تركيز على بناء الكتلة العضلية وخفض نسبة الدهون بالتناوب'
 };
 
@@ -29,11 +32,12 @@ export const GOALS_MAP = {
     color: '#4CAF50',
     bgColor: 'rgba(76, 175, 80, 0.15)',
     borderColor: '#4CAF50',
-    proteinMultiplier: 2.2, // g per kg
-    carbRatio: 0.55,
+    proteinMultiplierLBM: 2.3, // g per kg of LBM (Lean Body Mass)
+    proteinMultiplierTotal: 2.0, // fallback per kg total weight
+    carbRatio: 0.50,
     fatRatio: 0.25,
     calorieDelta: 250, // Surplus +250 kcal
-    scientificBasis: 'زيادة طفيفة في السعرات (+250) مع رفع الكارب لأعلى مستوياته في أيام التمارين المركبة لشحن مخازن الجليكوجين وتحفيز البناء عبر هرمون الإنسولين البنائي.',
+    scientificBasis: 'زيادة طفيفة في السعرات (+250) مع بناء البروتين على الكتلة الخالية من الدهون LBM وتغذية الجليكوجين في أيام التمرين.',
     description: 'تركيز على زيادة الكربوهيدرات في أيام التمرين لتعزيز البناء العضلي وتجديد الجليكوجين.'
   },
   fatloss: {
@@ -41,11 +45,12 @@ export const GOALS_MAP = {
     color: '#2196F3',
     bgColor: 'rgba(33, 150, 243, 0.15)',
     borderColor: '#2196F3',
-    proteinMultiplier: 2.1,
+    proteinMultiplierLBM: 2.5,
+    proteinMultiplierTotal: 1.9,
     carbRatio: 0.35,
     fatRatio: 0.28,
     calorieDelta: -400, // Deficit -400 kcal
-    scientificBasis: 'عجز متوسط في السعرات (-400) لحماية الكتلة العضلية مع تدوير الكارب لمنع هبوط هرمون اللبتين (Leptin) وتباطؤ معدل الأيض (Metabolic Adaptation).',
+    scientificBasis: 'عجز متوسط (-400) لحماية العضلات مع تحديد البروتين بناءً على LBM وتدوير الكارب لتفادي هبوط هرمون اللبتين وتكيّف الأيض.',
     description: 'تخفيض السعرات مع الحفاظ على أيام مرتفعة الكارب لمنع هبوط الأيض (Metabolic Adaptation).'
   },
   cutting: {
@@ -53,23 +58,25 @@ export const GOALS_MAP = {
     color: '#F44336',
     bgColor: 'rgba(244, 67, 54, 0.15)',
     borderColor: '#F44336',
-    proteinMultiplier: 2.4,
+    proteinMultiplierLBM: 2.7, // High protein to prevent muscle loss in severe deficit
+    proteinMultiplierTotal: 2.2,
     carbRatio: 0.25,
     fatRatio: 0.25,
     calorieDelta: -600, // Deficit -600 kcal
-    scientificBasis: 'عجز حاد (-600 سعرة) مع رفع البروتين لأقصى حد حماة للعضلات (2.4g/kg) وأيام منخفضة الكارب لزيادة أكسدة الدهون مع يوم إعادة شحن جليكوجين (Refeed).',
-    description: 'رفع البروتين إلى أقصى حد لحماية العضلات مع تقليل الكربوهيدرات لمعظم أيام الأسبوع.'
+    scientificBasis: 'عجز حاد (-600 سعرة) مع رفع البروتين إلى 2.7g/kg LBM لمنع الهدم العضلي، وتوجيه الكارب حواش التمارين فقط.',
+    description: 'رفع البروتين لحماية العضلات مع تقليل الكربوهيدرات لمعظم أيام الأسبوع.'
   },
   maintenance: {
     label: 'محافظة وتوازن صحي (Maintenance)',
     color: '#9C27B0',
     bgColor: 'rgba(156, 39, 176, 0.15)',
     borderColor: '#9C27B0',
-    proteinMultiplier: 1.8,
+    proteinMultiplierLBM: 2.1,
+    proteinMultiplierTotal: 1.7,
     carbRatio: 0.45,
     fatRatio: 0.30,
     calorieDelta: 0, // Zero surplus/deficit
-    scientificBasis: 'توازن تام في الطاقة (السعرات = TDEE) مع تدوير خفيف للكربوهيدرات لتعزيز الحساسية للإنسولين وزيادة طاقة التمرين.',
+    scientificBasis: 'توازن تام في الطاقة مع تدوير خفيف للكربوهيدرات لتعزيز الحساسية للإنسولين وزيادة أداء التمارين.',
     description: 'توازن مستقر في السعرات مع تدوير متوسط للكربوهيدرات لزيادة النشاط واللياقة.'
   }
 };
@@ -118,10 +125,6 @@ export function validateProfileForNutrition(profile: UserProfile): ValidationRes
   };
 }
 
-/**
- * Strict Data Requirement Guard (if-else condition)
- * Prevents calculations if bodyFatPct or weightKg is missing or invalid
- */
 export function hasRequiredDataForKatchMcArdle(profile: UserProfile): boolean {
   return (
     Boolean(profile) &&
@@ -132,10 +135,6 @@ export function hasRequiredDataForKatchMcArdle(profile: UserProfile): boolean {
   );
 }
 
-/**
- * Ensures profile has valid numbers for Katch-McArdle calculations,
- * falling back to gender defaults (15% male / 23% female, 80kg) if unprovided.
- */
 export function getEffectiveProfile(profile: UserProfile): UserProfile {
   const p = profile || DEFAULT_USER_PROFILE;
   const gender = p.gender === 'Female' ? 'Female' : 'Male';
@@ -146,6 +145,9 @@ export function getEffectiveProfile(profile: UserProfile): UserProfile {
   const heightCm = (typeof p.heightCm === 'number' && p.heightCm > 0) ? p.heightCm : 175;
   const age = (typeof p.age === 'number' && p.age > 0) ? p.age : 28;
   const activityLevel = (typeof p.activityLevel === 'number' && p.activityLevel > 0) ? p.activityLevel : 1.55;
+  const weeksInDeficit = (typeof p.weeksInDeficit === 'number' && p.weeksInDeficit >= 0) ? p.weeksInDeficit : 4;
+  const weeklyTrainingSets = (typeof p.weeklyTrainingSets === 'number' && p.weeklyTrainingSets > 0) ? p.weeklyTrainingSets : 20;
+  const avgRPE = (typeof p.avgRPE === 'number' && p.avgRPE >= 5) ? p.avgRPE : 8.5;
 
   return {
     ...p,
@@ -155,13 +157,13 @@ export function getEffectiveProfile(profile: UserProfile): UserProfile {
     heightCm,
     age,
     activityLevel,
+    weeksInDeficit,
+    weeklyTrainingSets,
+    avgRPE,
     goal: p.goal || 'muscle'
   };
 }
 
-/**
- * Body Fat and Activity Level Categorization Tiers
- */
 export type BodyFatTier = 'essential' | 'lean' | 'moderate' | 'high';
 export type ActivityTier = 'sedentary' | 'moderate' | 'intense';
 
@@ -186,129 +188,231 @@ export function getActivityTier(activityLevel: number): ActivityTier {
 }
 
 /**
- * Strict Lookup Table determining Carbohydrate Requirements & Scaling Factors
- * based on Body Fat Percentage Tiers (essential, lean, moderate, high)
- * and Physical Activity Tiers (sedentary, moderate, intense).
+ * Exercise Physiology Engine - Energy Availability (EA), Adaptive Metabolism, & Glycogen Dynamics
  */
+export interface PhysiologicalEngineState {
+  lbmKg: number;
+  fatMassKg: number;
+  bmrKatch: number;
+  bmrMifflin: number;
+  rawTdee: number;
+  adaptiveFactor: number; // 0.82 to 1.0 (Metabolic Adaptation from weeks in deficit)
+  adaptiveTdee: number; // TDEE corrected for adaptive thermogenesis
+  muscleGlycogenCapacityG: number; // ~15g per kg LBM
+  liverGlycogenCapacityG: number;  // ~90g
+  totalGlycogenCapacityG: number;
+  basalBrainGlucoseNeedG: number;  // ~120g/day
+  heavyLegWorkoutDepletionG: number;
+  upperBodyWorkoutDepletionG: number;
+  energyAvailabilityTarget: number; // kcal/kg LBM/day
+  eaStatusLabel: string;
+  dietFatigueScore: number; // 0 - 100
+  refeedRecommendation: 'none' | '1_day_refeed' | '2_day_refeed' | 'diet_break_1week';
+  obesityInsulinCapActive: boolean;
+  projectedWeeklyFatLossKg: number;
+  projectedWeeklyMuscleMassKg: number;
+  estimatedWeeksToGoal: number;
+}
+
+export function calculatePhysiologicalEngineState(profile: UserProfile): PhysiologicalEngineState {
+  const effective = getEffectiveProfile(profile);
+  const lbmKg = Math.round(effective.weightKg * (1 - effective.bodyFatPct! / 100) * 10) / 10;
+  const fatMassKg = Math.round((effective.weightKg - lbmKg) * 10) / 10;
+
+  const bmrKatch = Math.round(370 + (21.6 * lbmKg));
+  const bmrMifflin = calculateBMRMifflin(effective);
+  const rawTdee = Math.round(bmrKatch * effective.activityLevel);
+
+  // Metabolic Adaptation model based on weeks in deficit
+  const weeks = effective.weeksInDeficit || 0;
+  // Thyroid T3/NEAT drops ~1.2% per week in deficit down to max 18% reduction
+  const adaptiveFactor = Math.max(0.82, Math.round((1.0 - (weeks * 0.012)) * 100) / 100);
+  const adaptiveTdee = Math.round(rawTdee * adaptiveFactor);
+
+  // Glycogen capacities
+  const muscleGlycogenCapacityG = Math.round(lbmKg * 15);
+  const liverGlycogenCapacityG = 90;
+  const totalGlycogenCapacityG = muscleGlycogenCapacityG + liverGlycogenCapacityG;
+  const basalBrainGlucoseNeedG = 120;
+
+  // Training volume & RPE specific glycogen depletion
+  const setsPerSession = Math.round((effective.weeklyTrainingSets || 20) / 4);
+  const rpe = effective.avgRPE || 8.5;
+
+  const heavyLegWorkoutDepletionG = Math.round(lbmKg * 1.45 * (setsPerSession / 6) * (rpe / 8.5));
+  const upperBodyWorkoutDepletionG = Math.round(lbmKg * 1.05 * (setsPerSession / 6) * (rpe / 8.5));
+
+  // Goal & Energy Availability (EA)
+  const goalConfig = GOALS_MAP[effective.goal] || GOALS_MAP.muscle;
+  const targetCalories = Math.max(1200, adaptiveTdee + goalConfig.calorieDelta);
+  const avgEEE = Math.round(lbmKg * 3.8); // Average exercise energy expenditure kcal
+
+  const eaVal = Math.round(((targetCalories - avgEEE) / lbmKg) * 10) / 10;
+
+  let eaStatusLabel = 'ملاَءة طاقة ممتازة للبناء العضلي (EA > 45)';
+  if (eaVal < 30) {
+    eaStatusLabel = '⚠️ عجز طاقة حاد (Low Energy Availability < 30) - خطر هبوط هرموني RED-S';
+  } else if (eaVal <= 45) {
+    eaStatusLabel = 'عجز طاقة مثالي لخسارة الدهون مع حماية الغدد (EA 30-45)';
+  }
+
+  // Diet Fatigue Score (0 - 100)
+  const fatTier = getBodyFatTier(effective.gender, effective.bodyFatPct!);
+  let fatigueScore = Math.min(100, Math.round((weeks * 5) + (45 - Math.min(45, eaVal)) * 1.5 + (fatTier === 'essential' ? 25 : 0)));
+
+  let refeedRecommendation: 'none' | '1_day_refeed' | '2_day_refeed' | 'diet_break_1week' = 'none';
+  if (fatigueScore >= 80 || eaVal < 28) {
+    refeedRecommendation = 'diet_break_1week';
+  } else if (fatigueScore >= 60 || (weeks >= 6 && fatTier === 'lean')) {
+    refeedRecommendation = '2_day_refeed';
+  } else if (weeks >= 4 && fatTier !== 'high') {
+    refeedRecommendation = '1_day_refeed';
+  }
+
+  const obesityInsulinCapActive = fatTier === 'high';
+
+  // Body Composition Projections (Forbes / Hall model)
+  const dailyCalorieDeficit = adaptiveTdee - targetCalories;
+  const projectedWeeklyFatLossKg = dailyCalorieDeficit > 0 
+    ? Math.round(((dailyCalorieDeficit * 7 * 0.85) / 7700) * 100) / 100 
+    : 0;
+  const projectedWeeklyMuscleMassKg = dailyCalorieDeficit < 0 
+    ? Math.round((((Math.abs(dailyCalorieDeficit) * 7 * 0.45)) / 7700) * 100) / 100 
+    : 0;
+
+  const weightDiffKg = Math.max(0, effective.weightKg - (effective.targetWeightKg || effective.weightKg));
+  const estimatedWeeksToGoal = projectedWeeklyFatLossKg > 0 ? Math.ceil(weightDiffKg / projectedWeeklyFatLossKg) : 0;
+
+  return {
+    lbmKg,
+    fatMassKg,
+    bmrKatch,
+    bmrMifflin,
+    rawTdee,
+    adaptiveFactor,
+    adaptiveTdee,
+    muscleGlycogenCapacityG,
+    liverGlycogenCapacityG,
+    totalGlycogenCapacityG,
+    basalBrainGlucoseNeedG,
+    heavyLegWorkoutDepletionG,
+    upperBodyWorkoutDepletionG,
+    energyAvailabilityTarget: eaVal,
+    eaStatusLabel,
+    dietFatigueScore: fatigueScore,
+    refeedRecommendation,
+    obesityInsulinCapActive,
+    projectedWeeklyFatLossKg,
+    projectedWeeklyMuscleMassKg,
+    estimatedWeeksToGoal
+  };
+}
+
+export function calculateBMR(profile: UserProfile): number {
+  const phys = calculatePhysiologicalEngineState(profile);
+  return phys.bmrKatch;
+}
+
+export function calculateBMRMifflin(profile: UserProfile): number {
+  const effective = getEffectiveProfile(profile);
+  const { weightKg, heightCm, age, gender } = effective;
+  if (gender === 'Male') {
+    return Math.round(10 * weightKg + 6.25 * heightCm - 5 * age + 5);
+  } else {
+    return Math.round(10 * weightKg + 6.25 * heightCm - 5 * age - 161);
+  }
+}
+
+export function calculateTDEE(profile: UserProfile): number {
+  const phys = calculatePhysiologicalEngineState(profile);
+  return phys.adaptiveTdee;
+}
+
+export function calculateLeanBodyMass(profile: UserProfile): number {
+  const phys = calculatePhysiologicalEngineState(profile);
+  return phys.lbmKg;
+}
+
+/**
+ * Calculates Baseline Macros using strict Lean Body Mass (LBM) anchoring
+ */
+export function calculateBaselineMacros(profile: UserProfile): Macros {
+  const effective = getEffectiveProfile(profile);
+  const phys = calculatePhysiologicalEngineState(effective);
+  const goalConfig = GOALS_MAP[effective.goal] || GOALS_MAP.muscle;
+
+  const targetCalories = Math.max(1200, phys.adaptiveTdee + goalConfig.calorieDelta);
+
+  // Protein anchored strictly to LBM
+  const proteinG = Math.round(phys.lbmKg * goalConfig.proteinMultiplierLBM);
+  const proteinCal = proteinG * 4;
+
+  // Fat anchored to LBM (0.85g per kg LBM baseline)
+  let fatG = Math.round(phys.lbmKg * 0.85);
+  const minFatG = Math.round((targetCalories * 0.20) / 9);
+  const maxFatG = Math.round((targetCalories * 0.35) / 9);
+  fatG = Math.max(minFatG, Math.min(maxFatG, fatG));
+  const fatCal = fatG * 9;
+
+  // Remaining calories allocated to Carbs
+  let carbCal = targetCalories - (proteinCal + fatCal);
+  let carbG = Math.round(carbCal / 4);
+
+  // Safety Cap for Obese / Insulin Resistant Profiles
+  if (phys.obesityInsulinCapActive) {
+    const maxCarbCapG = Math.round(phys.lbmKg * 2.5);
+    if (carbG > maxCarbCapG) {
+      carbG = maxCarbCapG;
+      carbCal = carbG * 4;
+      fatG = Math.max(minFatG, Math.round((targetCalories - (proteinCal + carbCal)) / 9));
+    }
+  }
+
+  carbG = Math.max(30, carbG);
+  const actualCalories = Math.round((proteinG * 4) + (fatG * 9) + (carbG * 4));
+
+  return {
+    calories: actualCalories,
+    protein: proteinG,
+    fat: fatG,
+    carbs: carbG
+  };
+}
+
+export const calculateMacros = calculateBaselineMacros;
+
 export interface CarbLookupEntry {
-  baseCarbRatioPct: number;    // Baseline Carb % of Total Energy
-  highCarbMultiplier: number;  // Multiplier for High Carb / Heavy Workout Days
-  mediumCarbMultiplier: number;// Multiplier for Medium Carb Days
-  lowCarbMultiplier: number;   // Multiplier for Low Carb / Rest Days
-  refeedCarbMultiplier: number;// Multiplier for Refeed Days
+  baseCarbRatioPct: number;
+  highCarbMultiplier: number;
+  mediumCarbMultiplier: number;
+  lowCarbMultiplier: number;
+  refeedCarbMultiplier: number;
   description: string;
 }
 
 export const CARB_REQUIREMENT_LOOKUP_TABLE: Record<BodyFatTier, Record<ActivityTier, CarbLookupEntry>> = {
   essential: {
-    sedentary: {
-      baseCarbRatioPct: 45,
-      highCarbMultiplier: 1.35,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.60,
-      refeedCarbMultiplier: 1.40,
-      description: 'دهون منخفضة جداً + نشاط خامل: تركيز على حساسية إنسولين عالية مع تدوير طاقة معتدل.'
-    },
-    moderate: {
-      baseCarbRatioPct: 50,
-      highCarbMultiplier: 1.45,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.55,
-      refeedCarbMultiplier: 1.50,
-      description: 'دهون منخفضة جداً + نشاط متوسط: شحن جليكوجين ممتاز لتعزيز البناء العضلي بدون تخزين شحوم.'
-    },
-    intense: {
-      baseCarbRatioPct: 55,
-      highCarbMultiplier: 1.55,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.50,
-      refeedCarbMultiplier: 1.60,
-      description: 'دهون منخفضة جداً + نشاط مكثف: أقصى كمية كربوهيدرات لدعم التدريب المكثف والأداء الأقصى.'
-    }
+    sedentary: { baseCarbRatioPct: 45, highCarbMultiplier: 1.35, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.60, refeedCarbMultiplier: 1.40, description: 'دهون منخفضة جداً + نشاط خامل: حساسية إنسولين أقصاها، تدوير معتدل.' },
+    moderate: { baseCarbRatioPct: 50, highCarbMultiplier: 1.45, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.55, refeedCarbMultiplier: 1.50, description: 'دهون منخفضة جداً + نشاط متوسط: شحن جليكوجين ممتاز للبناء دون تخزين دهون.' },
+    intense: { baseCarbRatioPct: 55, highCarbMultiplier: 1.55, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.50, refeedCarbMultiplier: 1.60, description: 'دهون منخفضة جداً + نشاط مكثف: أقصى كمية كربوهيدرات للأداء الرياضي الفائق.' }
   },
   lean: {
-    sedentary: {
-      baseCarbRatioPct: 40,
-      highCarbMultiplier: 1.30,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.55,
-      refeedCarbMultiplier: 1.35,
-      description: 'جسم ممشوق + نشاط خامل: توازن كربوهيدرات مع ضبط الفائض لتفادي تراكم الدهون.'
-    },
-    moderate: {
-      baseCarbRatioPct: 45,
-      highCarbMultiplier: 1.40,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.50,
-      refeedCarbMultiplier: 1.45,
-      description: 'جسم ممشوق + نشاط متوسط: تدوير كارب مثالي لدعم البناء واستشفاء الألياف العضلية.'
-    },
-    intense: {
-      baseCarbRatioPct: 50,
-      highCarbMultiplier: 1.50,
-      mediumCarbMultiplier: 1.0,
-      lowCarbMultiplier: 0.45,
-      refeedCarbMultiplier: 1.55,
-      description: 'جسم ممشوق + نشاط مكثف: زيادة كبيرة بالكارب في أيام التمرين وتخفيض موجه في أيام الراحة.'
-    }
+    sedentary: { baseCarbRatioPct: 40, highCarbMultiplier: 1.30, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.55, refeedCarbMultiplier: 1.35, description: 'جسم ممشوق + نشاط خامل: توازن كربوهيدرات مع ضبط الفائض.' },
+    moderate: { baseCarbRatioPct: 45, highCarbMultiplier: 1.40, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.50, refeedCarbMultiplier: 1.45, description: 'جسم ممشوق + نشاط متوسط: تدوير كارب مثالي لدعم الاستشفاء وتجديد الجليكوجين.' },
+    intense: { baseCarbRatioPct: 50, highCarbMultiplier: 1.50, mediumCarbMultiplier: 1.0, lowCarbMultiplier: 0.45, refeedCarbMultiplier: 1.55, description: 'جسم ممشوق + نشاط مكثف: كربوهيدرات مرتفعة في التمرين مع انخفاض موجه بالراحة.' }
   },
   moderate: {
-    sedentary: {
-      baseCarbRatioPct: 35,
-      highCarbMultiplier: 1.25,
-      mediumCarbMultiplier: 0.95,
-      lowCarbMultiplier: 0.50,
-      refeedCarbMultiplier: 1.30,
-      description: 'دهون متوسطة + نشاط خامل: تقليل الكارب في أيام الراحة لتنشيط أكسدة الشحوم المخزنة.'
-    },
-    moderate: {
-      baseCarbRatioPct: 40,
-      highCarbMultiplier: 1.35,
-      mediumCarbMultiplier: 0.95,
-      lowCarbMultiplier: 0.45,
-      refeedCarbMultiplier: 1.40,
-      description: 'دهون متوسطة + نشاط متوسط: تدوير متوازن بين أيام التمرين الثقيلة وأيام الاستشفاء.'
-    },
-    intense: {
-      baseCarbRatioPct: 45,
-      highCarbMultiplier: 1.40,
-      mediumCarbMultiplier: 0.95,
-      lowCarbMultiplier: 0.40,
-      refeedCarbMultiplier: 1.45,
-      description: 'دهون متوسطة + نشاط مكثف: كربوهيدرات موجهة خصيصاً للتمرين لمنع خسارة الكتلة العضلية.'
-    }
+    sedentary: { baseCarbRatioPct: 35, highCarbMultiplier: 1.25, mediumCarbMultiplier: 0.95, lowCarbMultiplier: 0.50, refeedCarbMultiplier: 1.30, description: 'دهون متوسطة + نشاط خامل: تقليل الكارب بالراحة لتنشيط أكسدة الشحوم.' },
+    moderate: { baseCarbRatioPct: 40, highCarbMultiplier: 1.35, mediumCarbMultiplier: 0.95, lowCarbMultiplier: 0.45, refeedCarbMultiplier: 1.40, description: 'دهون متوسطة + نشاط متوسط: تدوير متوازن بين التمرين والاستشفاء.' },
+    intense: { baseCarbRatioPct: 45, highCarbMultiplier: 1.40, mediumCarbMultiplier: 0.95, lowCarbMultiplier: 0.40, refeedCarbMultiplier: 1.45, description: 'دهون متوسطة + نشاط مكثف: كربوهيدرات موجهة خصيصاً للتمرين للحفاظ على العضلات.' }
   },
   high: {
-    sedentary: {
-      baseCarbRatioPct: 25,
-      highCarbMultiplier: 1.15,
-      mediumCarbMultiplier: 0.85,
-      lowCarbMultiplier: 0.40,
-      refeedCarbMultiplier: 1.20,
-      description: 'دهون مرتفعة + نشاط خامل: تقييد الكارب لإعادة رفع حساسية الإنسولين وأكسدة الدهون.'
-    },
-    moderate: {
-      baseCarbRatioPct: 30,
-      highCarbMultiplier: 1.25,
-      mediumCarbMultiplier: 0.85,
-      lowCarbMultiplier: 0.40,
-      refeedCarbMultiplier: 1.25,
-      description: 'دهون مرتفعة + نشاط متوسط: كربوهيدرات مركزة حول التمرين فقط مع تخفيض قاسي في الراحة.'
-    },
-    intense: {
-      baseCarbRatioPct: 35,
-      highCarbMultiplier: 1.30,
-      mediumCarbMultiplier: 0.85,
-      lowCarbMultiplier: 0.35,
-      refeedCarbMultiplier: 1.35,
-      description: 'دهون مرتفعة + نشاط مكثف: حماية العضلات بالكارب في التمارين الصعبة مع حرق الدهون بقية الأيام.'
-    }
+    sedentary: { baseCarbRatioPct: 25, highCarbMultiplier: 1.15, mediumCarbMultiplier: 0.85, lowCarbMultiplier: 0.40, refeedCarbMultiplier: 1.20, description: 'دهون مرتفعة + نشاط خامل: تقييد الكارب لإعادة رفع حساسية الإنسولين وأكسدة الدهون.' },
+    moderate: { baseCarbRatioPct: 30, highCarbMultiplier: 1.25, mediumCarbMultiplier: 0.85, lowCarbMultiplier: 0.40, refeedCarbMultiplier: 1.25, description: 'دهون مرتفعة + نشاط متوسط: كربوهيدرات مركزة حول التمرين فقط مع سقف حماية لحرق الدهون.' },
+    intense: { baseCarbRatioPct: 35, highCarbMultiplier: 1.30, mediumCarbMultiplier: 0.85, lowCarbMultiplier: 0.35, refeedCarbMultiplier: 1.35, description: 'دهون مرتفعة + نشاط مكثف: كربوهيدرات محسوبة بدقة لدعم التمارين الثقيلة دون تعطيل العجز.' }
   }
 };
 
-/**
- * Get Carb Requirement Entry from Lookup Table
- */
 export function getCarbLookupEntry(profile: UserProfile): CarbLookupEntry {
   const effective = getEffectiveProfile(profile);
   const fatTier = getBodyFatTier(effective.gender, effective.bodyFatPct!);
@@ -316,9 +420,6 @@ export function getCarbLookupEntry(profile: UserProfile): CarbLookupEntry {
   return CARB_REQUIREMENT_LOOKUP_TABLE[fatTier][actTier];
 }
 
-/**
- * Scientific Matrix Rule interface from strict Lookup Table
- */
 export interface CarbMatrixRule {
   highCarbFactor: number;
   mediumCarbFactor: number;
@@ -330,10 +431,6 @@ export interface CarbMatrixRule {
   matrixRuleRationale: string;
 }
 
-/**
- * Strict Scientific Reference Matrix (Lookup Table)
- * Connects Body Fat %, Activity Level, and Training Goal deterministically
- */
 export function getCarbMatrixRules(profile: UserProfile): CarbMatrixRule {
   const effective = getEffectiveProfile(profile);
   const lookup = getCarbLookupEntry(effective);
@@ -344,7 +441,7 @@ export function getCarbMatrixRules(profile: UserProfile): CarbMatrixRule {
     essential: 'نسبة دهون منخفضة جداً (رياضي محترف / منافسات)',
     lean: 'نسبة دهون مثالية وممشوقة (Lean Body Comp)',
     moderate: 'نسبة دهون متوسطة (Moderate Body Comp)',
-    high: 'نسبة دهون مرتفعة (High Body Fat)'
+    high: 'نسبة دهون مرتفعة / سمنة (High Body Fat - Obese Cap Active)'
   };
 
   const actTierLabels: Record<ActivityTier, string> = {
@@ -366,157 +463,28 @@ export function getCarbMatrixRules(profile: UserProfile): CarbMatrixRule {
 }
 
 /**
- * Calculate Lean Body Mass (LBM) in kg using strict Katch-McArdle formula
- * Formula: LBM = weightKg * (1 - bodyFatPct / 100)
- */
-export function calculateLeanBodyMass(profile: UserProfile): number {
-  const effective = getEffectiveProfile(profile);
-  const lbm = effective.weightKg * (1 - (effective.bodyFatPct || 15) / 100);
-  return Math.round(lbm * 10) / 10;
-}
-
-/**
- * Calculate Basal Metabolic Rate using Katch-McArdle Formula (Gold Standard for Athletes)
- * Formula: BMR = 370 + (21.6 * Lean Body Mass in kg)
- */
-export function calculateBMR(profile: UserProfile): number {
-  const lbm = calculateLeanBodyMass(profile);
-  return Math.round(370 + (21.6 * lbm));
-}
-
-/**
- * Calculate BMR using Mifflin-St Jeor (for scientific reference comparison)
- */
-export function calculateBMRMifflin(profile: UserProfile): number {
-  const effective = getEffectiveProfile(profile);
-  const { weightKg, heightCm, age, gender } = effective;
-  if (gender === 'Male') {
-    return Math.round(10 * weightKg + 6.25 * heightCm - 5 * age + 5);
-  } else {
-    return Math.round(10 * weightKg + 6.25 * heightCm - 5 * age - 161);
-  }
-}
-
-/**
- * Calculate Total Daily Energy Expenditure (TDEE) using Katch-McArdle BMR
- */
-export function calculateTDEE(profile: UserProfile): number {
-  const effective = getEffectiveProfile(profile);
-  const bmr = calculateBMR(effective);
-  return Math.round(bmr * effective.activityLevel);
-}
-
-/**
- * Calculate Baseline Macros using Katch-McArdle Engine & Lookup Table
- */
-export function calculateBaselineMacros(profile: UserProfile): Macros {
-  const effective = getEffectiveProfile(profile);
-  const tdee = calculateTDEE(effective);
-  const goalConfig = GOALS_MAP[effective.goal] || GOALS_MAP.muscle;
-  const lookup = getCarbLookupEntry(effective);
-  
-  // Target calories based on scientific goal surplus/deficit
-  const targetCalories = Math.max(1200, tdee + goalConfig.calorieDelta);
-
-  // Protein calculation based on total weight and goal multiplier
-  const proteinG = Math.round(effective.weightKg * goalConfig.proteinMultiplier);
-  const proteinCal = proteinG * 4;
-
-  // Fat calculation based on target calories ratio
-  const fatCal = Math.round(targetCalories * goalConfig.fatRatio);
-  const fatG = Math.round(fatCal / 9);
-
-  // Carb ratio derived from Lookup Table or goal mapping
-  const carbRatio = lookup ? (lookup.baseCarbRatioPct / 100) : goalConfig.carbRatio;
-  
-  // Calculate carb calories using the scientific carb ratio from the Lookup Table / Goal
-  const carbCalFromRatio = Math.round(targetCalories * carbRatio);
-  const carbG = Math.max(20, Math.round(carbCalFromRatio / 4));
-
-  // Adjust calories to ensure total macro calories match target calories exactly
-  const actualCalories = Math.round((proteinG * 4) + (fatG * 9) + (carbG * 4));
-
-  return {
-    calories: actualCalories,
-    protein: proteinG,
-    fat: fatG,
-    carbs: carbG
-  };
-}
-
-/**
- * Export alias calculateMacros for exact compatibility
- */
-export const calculateMacros = calculateBaselineMacros;
-
-/**
- * Generate 7-Day Carb Cycling Plan using strict normalized weekly energy scaling
- * Guarantees total weekly calories = 7 * daily target kcal while balancing carbs/fats/protein scientifically
+ * Generate 7-Day Carb Cycling Plan based on Muscle Group Glycogen Depletion & Energy Availability
  */
 export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
-  if (!profile) {
-    throw new Error('خطأ في البيانات: ملف المستخدم مفقود بالكامل.');
-  }
-
-  if (
-    profile.bodyFatPct === undefined ||
-    profile.bodyFatPct === null ||
-    typeof profile.bodyFatPct !== 'number' ||
-    isNaN(profile.bodyFatPct) ||
-    profile.bodyFatPct <= 0
-  ) {
-    throw new Error('خطأ في البيانات الحيوية: غياب نسبة الدهون في الجسم (bodyFatPct). يلزم إدخال نسبة الدهون لحساب معادلة Katch-McArdle وتوليد الخطة الغذائية الدقيقة.');
-  }
-
-  if (profile.bodyFatPct < 3 || profile.bodyFatPct > 60) {
-    throw new Error(`خطأ في الحساب: نسبة الدهون المدخلة (${profile.bodyFatPct}%) خارج النطاق المنطقي (من 3% إلى 60%).`);
-  }
-
-  if (
-    profile.weightKg === undefined ||
-    profile.weightKg === null ||
-    typeof profile.weightKg !== 'number' ||
-    isNaN(profile.weightKg) ||
-    profile.weightKg <= 0
-  ) {
-    throw new Error('خطأ في البيانات الحيوية: وزن الجسم (weightKg) مفقود. يرجى إدخال الوزن بالكيلوجرام لمتابعة الحسابات العلمية.');
-  }
-
-  if (profile.weightKg < 30 || profile.weightKg > 250) {
-    throw new Error(`خطأ في الحساب: وزن الجسم المدخل (${profile.weightKg} كجم) خارج النطاق المنطقي (من 30 إلى 250 كجم).`);
-  }
-
   const validation = validateProfileForNutrition(profile);
   if (!validation.isValid) {
     throw new Error(`خطأ في بيانات الملف الشخصي: ${validation.errors.join(' | ')}`);
   }
 
   const effective = getEffectiveProfile(profile);
-
-  const baseMacros = calculateBaselineMacros(effective);
-  const targetKcal = baseMacros.calories;
+  const phys = calculatePhysiologicalEngineState(effective);
+  const matrixRules = getCarbMatrixRules(effective);
 
   const daysConfig = [
-    { name: 'السبت', isWorkout: true },
-    { name: 'الأحد', isWorkout: true },
-    { name: 'الإثنين', isWorkout: false },
-    { name: 'الثلاثاء', isWorkout: true },
-    { name: 'الأربعاء', isWorkout: true },
-    { name: 'الخميس', isWorkout: true },
-    { name: 'الجمعة', isWorkout: false }
+    { name: 'السبت', isWorkout: true, muscle: 'أرجل + سمانة (شدة عالية)' },
+    { name: 'الأحد', isWorkout: true, muscle: 'ظهر + بايسبس + بطن' },
+    { name: 'الإثنين', isWorkout: false, muscle: 'راحة واستشفاء عضلات' },
+    { name: 'الثلاثاء', isWorkout: true, muscle: 'صدر + ترايسبس + أكتاف' },
+    { name: 'الأربعاء', isWorkout: true, muscle: 'أرجل كواذ + خلفيات' },
+    { name: 'الخميس', isWorkout: true, muscle: 'ذراعين + أكتاف جانبي' },
+    { name: 'الجمعة', isWorkout: false, muscle: 'راحة واستشفاء تام' }
   ];
 
-  // Weight multipliers for daily energy distribution
-  const kcalWeightsMap: Record<string, Record<CarbDayType, number>> = {
-    fatloss: { high: 1.15, medium: 1.00, low: 0.90, refeed: 1.30 },
-    cutting: { high: 1.15, medium: 1.00, low: 0.90, refeed: 1.30 },
-    muscle: { high: 1.12, medium: 1.00, low: 0.92, refeed: 1.22 },
-    maintenance: { high: 1.10, medium: 1.00, low: 0.93, refeed: 1.20 }
-  };
-
-  const currentWeights = kcalWeightsMap[effective.goal] || kcalWeightsMap.muscle;
-
-  // Determine Day Types per day
   const assignedDays = daysConfig.map((d, index) => {
     let isWorkout = d.isWorkout;
     if (effective.workoutDays && Array.isArray(effective.workoutDays) && effective.workoutDays.length > 0) {
@@ -529,112 +497,108 @@ export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
     }
 
     let type: CarbDayType = 'medium';
-    let workoutFocus = isWorkout ? 'تمرين مقاومة مخصص' : 'راحة واستشفاء عضلات';
+    let workoutFocus = d.muscle;
 
     if (effective.goal === 'muscle') {
       if (isHeavy) {
         type = 'high';
-        workoutFocus = index === 0 ? 'ظهر + بايسبس (شدة عالية)' : index === 3 ? 'أرجل + سمانة (تحفيز ضخامة)' : 'تمرين مركبة كبرى (High Carb)';
       } else if (isWorkout) {
         type = 'medium';
-        workoutFocus = 'صدر + ترايسبس + أكتاف';
       } else {
         type = 'low';
-        workoutFocus = 'راحة نشطة / استشفاء عضلات';
       }
     } else if (effective.goal === 'fatloss') {
       if (isHeavy) {
         type = 'high';
-        workoutFocus = 'تمرين الشدة العالية HIIT + عضلات كبيرة';
       } else if (isWorkout) {
         type = 'medium';
-        workoutFocus = 'تمارين مقاومة شمولية + كارديو';
       } else {
         type = 'low';
-        workoutFocus = 'راحة من التمارين + صيام متقطع';
       }
     } else if (effective.goal === 'cutting') {
-      if (index === 0 && (effective.bodyFatPct || 15) <= 18) {
+      if (index === 0 && phys.refeedRecommendation !== 'none') {
         type = 'refeed';
         workoutFocus = 'يوم Refeed شحن الجليكوجين + تمرين أرجل حاد';
       } else if (isHeavy || isWorkout) {
         type = 'medium';
-        workoutFocus = 'تمارين مقاومة عالية التكرار + كارديو تنشيف';
       } else {
         type = 'low';
-        workoutFocus = 'تنشيف حاد + صيام 18:6 + مشي خفيف';
       }
     } else {
-      // Maintenance
       if (isHeavy) {
         type = 'high';
-        workoutFocus = 'تمرين قوة ورشاقة كلي';
       } else if (isWorkout) {
         type = 'medium';
-        workoutFocus = 'لياقة بدنية وكارديو متوسط';
       } else {
         type = 'low';
-        workoutFocus = 'راحة واستشفاء';
       }
     }
 
-    // Optional user strategy overrides
     if (effective.carbCycleStrategy === 'high_low_2tier') {
       type = isWorkout ? 'high' : 'low';
     } else if (effective.carbCycleStrategy === 'refeed_matrix') {
-      type = index === 0 ? 'refeed' : 'low';
+      type = (index === 0 && phys.refeedRecommendation !== 'none') ? 'refeed' : 'low';
     }
 
-    return { name: d.name, isWorkout, type, workoutFocus };
+    return { name: d.name, isWorkout, type, workoutFocus, targetMuscleGroup: d.muscle };
   });
 
-  // Calculate raw calories based on weights & normalize to guarantee exact 7-day total target
-  const rawKcals = assignedDays.map(d => targetKcal * (currentWeights[d.type] || 1.0));
-  const sumRawKcal = rawKcals.reduce((sum, val) => sum + val, 0);
-  const scaleFactor = (targetKcal * 7.0) / sumRawKcal;
+  return assignedDays.map((d) => {
+    let carbsPerLbmRate = 2.5;
+    let fatPerLbmRate = 0.8;
+    let proteinPerLbmRate = GOALS_MAP[effective.goal]?.proteinMultiplierLBM || 2.4;
+    let estimatedDepletion = 0;
+    let eee = 0;
 
-  const refWeight = effective.bodyFatPct ? calculateLeanBodyMass(effective) : effective.weightKg;
+    const isLegsOrBack = d.workoutFocus.includes('أرجل') || d.workoutFocus.includes('ظهر');
 
-  const fatPerKgMap: Record<CarbDayType, number> = {
-    high: 0.75,
-    medium: 0.95,
-    low: 1.30,
-    refeed: 0.65
-  };
-
-  return assignedDays.map((d, i) => {
-    const dayKcal = Math.round(rawKcals[i] * scaleFactor);
-
-    // Protein calculation (elevated slightly on low carb days to protect muscle)
-    let dayProtein = baseMacros.protein;
-    if (d.type === 'low') dayProtein = Math.round(baseMacros.protein * 1.06);
-    else if (d.type === 'refeed') dayProtein = Math.round(baseMacros.protein * 0.95);
-
-    // Fat calculation bounded strictly between 20% and 45% of daily calories
-    const minFat = Math.round((dayKcal * 0.20) / 9);
-    const maxFat = Math.round((dayKcal * 0.45) / 9);
-    const rawFat = Math.round(refWeight * fatPerKgMap[d.type]);
-    let dayFat = Math.max(minFat, Math.min(maxFat, rawFat));
-
-    // Carbs from remaining calories
-    let dayCarbs = Math.round((dayKcal - (dayProtein * 4) - (dayFat * 9)) / 4);
-
-    // Safety net for carbs (min 30g)
-    if (dayCarbs < 40) {
-      const needKcal = (40 - dayCarbs) * 4;
-      const fatCutG = Math.min(dayFat - minFat, Math.round(needKcal / 9));
-      dayFat -= Math.max(0, fatCutG);
-      dayCarbs = Math.round((dayKcal - (dayProtein * 4) - (dayFat * 9)) / 4);
+    if (d.type === 'high') {
+      carbsPerLbmRate = phys.obesityInsulinCapActive ? 2.4 : (isLegsOrBack ? 4.2 : 3.6);
+      fatPerLbmRate = 0.60;
+      estimatedDepletion = isLegsOrBack ? phys.heavyLegWorkoutDepletionG : phys.upperBodyWorkoutDepletionG;
+      eee = Math.round(phys.lbmKg * 4.8);
+    } else if (d.type === 'medium') {
+      carbsPerLbmRate = phys.obesityInsulinCapActive ? 1.8 : 2.8;
+      fatPerLbmRate = 0.80;
+      estimatedDepletion = phys.upperBodyWorkoutDepletionG;
+      eee = Math.round(phys.lbmKg * 3.6);
+    } else if (d.type === 'low') {
+      carbsPerLbmRate = phys.obesityInsulinCapActive ? 1.0 : 1.3;
+      fatPerLbmRate = 1.15; // Fat elevated on low carb days for hormone/androgen support
+      proteinPerLbmRate += 0.15;
+      estimatedDepletion = 0;
+      eee = Math.round(phys.lbmKg * 1.5);
+    } else if (d.type === 'refeed') {
+      carbsPerLbmRate = phys.obesityInsulinCapActive ? 3.0 : 5.4;
+      fatPerLbmRate = 0.40; // Minimal fat during refeed to drive insulin & glycogen storage
+      proteinPerLbmRate -= 0.2;
+      estimatedDepletion = phys.heavyLegWorkoutDepletionG;
+      eee = Math.round(phys.lbmKg * 4.2);
     }
+
+    let dayCarbs = Math.round(phys.lbmKg * carbsPerLbmRate);
+    let dayProtein = Math.round(phys.lbmKg * proteinPerLbmRate);
+    let dayFat = Math.round(phys.lbmKg * fatPerLbmRate);
+
+    if (phys.obesityInsulinCapActive && dayCarbs > 250) {
+      dayCarbs = 250;
+    }
+
     dayCarbs = Math.max(30, dayCarbs);
 
     const finalCalories = (dayProtein * 4) + (dayCarbs * 4) + (dayFat * 9);
 
-    // Calculate scientifically accurate food portions in grams
-    const cookedRicePortionG = Math.round((dayCarbs * 0.40) / 0.28); // 100g cooked rice = ~28g carbs
-    const sweetPotatoPortionG = Math.round((dayCarbs * 0.30) / 0.20); // 100g sweet potato = ~20g carbs
-    const oatsPortionG = Math.round((dayCarbs * 0.25) / 0.66); // 100g dry oats = ~66g carbs
-    const chickenPortionG = Math.round((dayProtein * 0.45) / 0.31); // 100g chicken = ~31g protein
+    // Calculate Energy Availability (EA) for this day
+    const dayEA = Math.round(((finalCalories - eee) / phys.lbmKg) * 10) / 10;
+    let eaCat: 'low' | 'optimal_fatloss' | 'hypertrophy' = 'optimal_fatloss';
+    if (dayEA < 30) eaCat = 'low';
+    else if (dayEA > 45) eaCat = 'hypertrophy';
+
+    // Calculate food portions in grams
+    const cookedRicePortionG = Math.round((dayCarbs * 0.40) / 0.28);
+    const sweetPotatoPortionG = Math.round((dayCarbs * 0.30) / 0.20);
+    const oatsPortionG = Math.round((dayCarbs * 0.25) / 0.66);
+    const chickenPortionG = Math.round((dayProtein * 0.45) / 0.31);
 
     const sources = (d.type === 'high' || d.type === 'refeed')
       ? [
@@ -660,6 +624,14 @@ export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
           `${Math.round(cookedRicePortionG * 0.25)}g أرز مسلوق فقط`
         ];
 
+    const carbMultiplier = Math.round((carbsPerLbmRate / 2.5) * 100) / 100;
+
+    const scientificRationale = `تم حساب الكارب (${dayCarbs}g = ${carbsPerLbmRate}g/kg LBM) بناءً على الكتلة الخالية من الدهون (${phys.lbmKg}kg)، مستهدف العضلة (${d.workoutFocus})، ومعدل استهلاك الجليكوجين (${estimatedDepletion}g). ملاَءة الطاقة EA = ${dayEA} kcal/kg LBM.` + (phys.obesityInsulinCapActive ? ' [تم تطبيق سقف حماية الدهون].' : '');
+
+    const refeedStatus = phys.refeedRecommendation !== 'none'
+      ? `موصى بـ Refeed: ${phys.refeedRecommendation}`
+      : 'الـ Refeed غير مطلوب حالياً (مستوى الإجهاد متزن)';
+
     return {
       dayName: d.name,
       type: d.type,
@@ -668,8 +640,23 @@ export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
       fat: dayFat,
       calories: finalCalories,
       workoutFocus: d.workoutFocus,
+      targetMuscleGroup: d.targetMuscleGroup,
       recommendedCarbSources: sources,
-      isWorkout: d.isWorkout
+      isWorkout: d.isWorkout,
+      carbMultiplier,
+      scientificRationale,
+      bodyFatTierLabel: matrixRules.bodyFatCategoryLabel,
+      activityTierLabel: matrixRules.activityCategoryLabel,
+      carbsPerLbmKg: carbsPerLbmRate,
+      proteinPerLbmKg: Math.round(proteinPerLbmRate * 10) / 10,
+      fatPerLbmKg: Math.round(fatPerLbmRate * 10) / 10,
+      estimatedGlycogenDepletionG: estimatedDepletion,
+      glycogenRestorationTargetG: dayCarbs,
+      refeedEligibilityStatus: refeedStatus,
+      energyAvailability: dayEA,
+      eaCategory: eaCat,
+      adaptiveTdee: phys.adaptiveTdee,
+      exerciseEnergyExpenditure: eee
     };
   });
 }
@@ -680,6 +667,7 @@ export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
 export interface ScientificBreakdown {
   validation: ValidationResult;
   matrixRules: CarbMatrixRule;
+  phys: PhysiologicalEngineState;
   bmrFormula: string;
   bmrValue: number;
   bmrKatchValue: number;
@@ -689,11 +677,12 @@ export interface ScientificBreakdown {
   activityLabel: string;
   activityMultiplier: number;
   tdeeValue: number;
+  adaptiveTdeeValue: number;
   goalName: string;
   goalCalorieDelta: number;
   targetCalories: number;
   proteinGrams: number;
-  proteinMultiplier: number;
+  proteinMultiplierLBM: number;
   proteinCalories: number;
   fatGrams: number;
   fatRatioPct: number;
@@ -708,53 +697,52 @@ export interface ScientificBreakdown {
 export function getScientificBreakdownDetails(profile: UserProfile): ScientificBreakdown {
   const validation = validateProfileForNutrition(profile);
   const matrixRules = getCarbMatrixRules(profile);
+  const phys = calculatePhysiologicalEngineState(profile);
 
-  const lbmKg = calculateLeanBodyMass(profile);
+  const lbmKg = phys.lbmKg;
   const bodyFatPctUsed = profile.bodyFatPct && profile.bodyFatPct > 0 
     ? profile.bodyFatPct 
     : (profile.gender === 'Male' ? 15 : 23);
 
-  const bmrKatchValue = calculateBMR(profile);
-  const bmrMifflinValue = calculateBMRMifflin(profile);
-  const tdee = calculateTDEE(profile);
-
   const goalConfig = GOALS_MAP[profile.goal] || GOALS_MAP.muscle;
   const act = ACTIVITY_LEVELS.find((a) => a.value === profile.activityLevel) || ACTIVITY_LEVELS[2];
 
-  const targetCalories = tdee + goalConfig.calorieDelta;
-  const proteinGrams = Math.round(profile.weightKg * goalConfig.proteinMultiplier);
+  const targetCalories = Math.max(1200, phys.adaptiveTdee + goalConfig.calorieDelta);
+  const proteinGrams = Math.round(lbmKg * goalConfig.proteinMultiplierLBM);
   const proteinCalories = proteinGrams * 4;
 
-  const fatCalories = Math.round(targetCalories * goalConfig.fatRatio);
-  const fatGrams = Math.round(fatCalories / 9);
+  const fatGrams = Math.round(lbmKg * 0.85);
+  const fatCalories = fatGrams * 9;
 
   const carbCalories = Math.max(0, targetCalories - (proteinCalories + fatCalories));
   const baseCarbGrams = Math.round(carbCalories / 4);
 
-  const highCarbRule = `ماتريكس (${Math.round(matrixRules.highCarbFactor * 100)}% carb): زيادة الكارب بنسبة +${Math.round((matrixRules.highCarbFactor - 1) * 100)}% (+${matrixRules.highCalorieAdj} سعرة) في أيام التمارين المركبة الأساسية`;
-  const mediumCarbRule = `ماتريكس (${Math.round(matrixRules.mediumCarbFactor * 100)}% carb): كارب متوازن (${Math.round(matrixRules.mediumCarbFactor * 100)}% من الأساسي) في أيام تمارين المقاومة العامة`;
-  const lowCarbRule = `ماتريكس (${Math.round(matrixRules.lowCarbFactor * 100)}% carb): تقليل الكارب إلى ${Math.round(matrixRules.lowCarbFactor * 100)}% من الأساسي (${matrixRules.lowCalorieAdj} سعرة) في أيام الراحة لتنشيط الأكسدة`;
+  const highCarbRule = `ماتريكس LBM (${Math.round(phys.obesityInsulinCapActive ? 2.4 : 3.8)}g/kg LBM): كربوهيدرات عالية لشحن مخزن الجليكوجين العضلي (سعة ${phys.muscleGlycogenCapacityG}g) في أيام التمارين المركبة`;
+  const mediumCarbRule = `ماتريكس LBM (${Math.round(phys.obesityInsulinCapActive ? 1.8 : 2.8)}g/kg LBM): كربوهيدرات متوسطة لتأمين طاقة التمارين العامة دون فائض`;
+  const lowCarbRule = `ماتريكس LBM (${Math.round(phys.obesityInsulinCapActive ? 1.0 : 1.3)}g/kg LBM): كربوهيدرات منخفضة بالراحة لتأمين طاقة الدماغ الأساسية (${phys.basalBrainGlucoseNeedG}g) وتحفيز أكسدة الدهون`;
 
   return {
     validation,
     matrixRules,
+    phys,
     bmrFormula: `370 + (21.6 × LBM ${lbmKg}kg)`,
-    bmrValue: bmrKatchValue,
-    bmrKatchValue,
-    bmrMifflinValue,
+    bmrValue: phys.bmrKatch,
+    bmrKatchValue: phys.bmrKatch,
+    bmrMifflinValue: phys.bmrMifflin,
     lbmKg,
     bodyFatPctUsed,
     activityLabel: act.label,
     activityMultiplier: profile.activityLevel,
-    tdeeValue: tdee,
+    tdeeValue: phys.rawTdee,
+    adaptiveTdeeValue: phys.adaptiveTdee,
     goalName: goalConfig.label,
     goalCalorieDelta: goalConfig.calorieDelta,
     targetCalories,
     proteinGrams,
-    proteinMultiplier: goalConfig.proteinMultiplier,
+    proteinMultiplierLBM: goalConfig.proteinMultiplierLBM,
     proteinCalories,
     fatGrams,
-    fatRatioPct: Math.round(goalConfig.fatRatio * 100),
+    fatRatioPct: Math.round((fatCalories / targetCalories) * 100),
     fatCalories,
     baseCarbGrams,
     scientificBasisText: goalConfig.scientificBasis,
@@ -764,9 +752,6 @@ export function getScientificBreakdownDetails(profile: UserProfile): ScientificB
   };
 }
 
-/**
- * Interface for Intra-day Dynamic Carb Timing Allocation
- */
 export interface IntradayCarbTiming {
   preWorkoutCarbsG: number;
   preWorkoutPct: number;
@@ -781,10 +766,6 @@ export interface IntradayCarbTiming {
   scientificRationale: string;
 }
 
-/**
- * Calculates dynamic intra-day carbohydrate timing & nutrient partitioning
- * Based on GLUT4 translocation, workout status, body fat / insulin sensitivity, and day type.
- */
 export function calculateIntradayCarbDistribution(dayPlan: DayPlan, profile: UserProfile): IntradayCarbTiming {
   const effective = getEffectiveProfile(profile);
   const totalCarbs = dayPlan.carbs;
@@ -792,11 +773,11 @@ export function calculateIntradayCarbDistribution(dayPlan: DayPlan, profile: Use
   const dayType = dayPlan.type;
   const bodyFat = effective.bodyFatPct || 15;
 
-  let insulinSensitivityText = 'حساسية إنسولين عالية (توجيه ممتاز للماكروز نحو الخلايا العضلية)';
+  let insulinSensitivityText = 'حساسية إنسولين عالية (توجيه ممتاز للماكروز نحو الخلايا العضلية عبر GLUT4)';
   if (bodyFat > 22) {
-    insulinSensitivityText = 'حساسية إنسولين منخفضة (يتطلب تركيز الكارب بعد التمرين مباشرة فقط للحد من تحويله لدهون)';
+    insulinSensitivityText = 'حساسية إنسولين منخفضة (تركيز الكارب حول نافذة التمرين فقط لمنع التخزين في النسيج الدهني)';
   } else if (bodyFat > 16) {
-    insulinSensitivityText = 'حساسية إنسولين معتدلة (توزيع متوازن وحساسية جيدة أثناء وبعد التمرين)';
+    insulinSensitivityText = 'حساسية إنسولين معتدلة (توزيع متوازن وتوجيه جليكوجيني جيد)';
   }
 
   let prePct = 30;
@@ -812,25 +793,25 @@ export function calculateIntradayCarbDistribution(dayPlan: DayPlan, profile: Use
         prePct = 30;
         postPct = 50;
       }
-      rationale = `في أيام الكارب المرتفع (${totalCarbs}g)، يتم تحفيز مستقبلات GLUT4 البنائية عبر توجيه ${postPct}% من الكارب في نافذة الاستشفاء بعد التمرين لضمان شحن الجليكوجين دون أي تخزين في النسيج الدهني.`;
+      rationale = `في أيام الكارب المرتفع (${totalCarbs}g)، يُوجه ${postPct}% من الكارب في نافذة الاستشفاء بعد التمرين مباشرة لشحن الجليكوجين عبر مستقبلات GLUT4 البنائية.`;
     } else if (dayType === 'medium') {
       prePct = 30;
       postPct = 40;
-      rationale = `في أيام الكارب المتوسط (${totalCarbs}g)، يتم توزيع الكارب بنسبة ${prePct}% قبل التمرين لتأمين طاقة التدريب و ${postPct}% بعد التمرين لإيقاف الهدم العضلي وتجديد المخازن.`;
+      rationale = `في أيام الكارب المتوسط (${totalCarbs}g)، يُوزع الكارب بنسبة ${prePct}% قبل التمرين لتأمين طاقة التدريب و ${postPct}% بعد التمرين لإيقاف الهدم وتجديد المخازن.`;
     } else {
       prePct = 25;
       postPct = 45;
-      rationale = `في أيام الكارب المنخفض مع التمرين (${totalCarbs}g)، يُركز معظم الكارب حول نافذة التمرين بحساب حذر لإعادة تحفيز أكسدة الدهون بقية اليوم.`;
+      rationale = `في أيام الكارب المنخفض مع التمرين (${totalCarbs}g)، يُركز معظم الكارب حول التمرين توفيراً للجلوكوز العضلي مع تحفيز أكسدة الشحوم بقية اليوم.`;
     }
   } else {
     if (dayType === 'high' || dayType === 'refeed') {
       prePct = 35;
       postPct = 40;
-      rationale = `في يوم الراحة ذو الكارب المرتفع (${totalCarbs}g)، تُقسم الكميات بين وجبات نافذة الأكل لإعادة تعبئة الجليكوجين الكبدي والعضلي ببطء مع دعم هرمون اللبتين (Leptin).`;
+      rationale = `في يوم الراحة ذو الكارب المرتفع (${totalCarbs}g)، تُقسم الكميات بين وجبات نافذة الأكل لإعادة تعبئة الجليكوجين الكبدي والعضلي ببطء مع دعم هرمون اللبتين.`;
     } else {
       prePct = 35;
       postPct = 35;
-      rationale = `في يوم الراحة المنخفض الكارب (${totalCarbs}g)، يُوزع الكارب بالتساوي على وجبات نافذة الأكل مع التركيز على مصادر الكارب المعقد الخضراوي ذو المؤشر الجلايسيمي المنخفض (Low GI).`;
+      rationale = `في يوم الراحة المنخفض الكارب (${totalCarbs}g)، يُوزع الكارب بالتساوي على وجبات نافذة الأكل مع التركيز على الكارب المعقد الخضراوي ذو المؤشر الجلايسيمي المنخفض (Low GI).`;
     }
   }
 
@@ -858,9 +839,6 @@ export function calculateIntradayCarbDistribution(dayPlan: DayPlan, profile: Use
   };
 }
 
-/**
- * Recommend Intermittent Fasting schedule
- */
 export function recommendFasting(profile: UserProfile): FastingType {
   if (profile.age > 60) return '12:12';
   if (profile.goal === 'muscle') return '14:10';

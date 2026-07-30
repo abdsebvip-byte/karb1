@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, DayPlan } from '../types';
-import { GOALS_MAP, calculateIntradayCarbDistribution } from '../domain/nutrition';
+import { GOALS_MAP, calculateIntradayCarbDistribution, getScientificBreakdownDetails } from '../domain/nutrition';
 import { ScientificBreakdownModal } from '../components/ScientificBreakdownModal';
 import { Sparkles, Dumbbell, Calendar, Utensils, Printer, RefreshCw, ChefHat, Calculator, ShieldCheck, Clock, Zap, Target } from 'lucide-react';
 
@@ -157,6 +157,53 @@ export const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
         )}
       </div>
 
+      {/* Scientific Body & Carb Cycling Matrix Banner */}
+      {(() => {
+        const details = getScientificBreakdownDetails(profile);
+        return (
+          <div className="bg-slate-950 border border-purple-500/40 rounded-2xl p-3.5 space-y-2.5 shadow-md">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                الماتريكس العلمي المربوط بحالة جسمك (Live Scientific Matrix)
+              </span>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-950 border border-emerald-800/80 px-2 py-0.5 rounded-full">
+                Katch-McArdle Engine
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[10px] font-mono">
+              <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl">
+                <span className="text-slate-400 block text-[9px] font-semibold">نسبة الدهون</span>
+                <span className="text-amber-300 font-bold">{details.bodyFatPctUsed}%</span>
+              </div>
+              <div className="bg-slate-900 border border-purple-800/60 p-2 rounded-xl bg-purple-950/30">
+                <span className="text-purple-300 block text-[9px] font-semibold">الكتلة العضلية (LBM)</span>
+                <span className="text-purple-200 font-extrabold">{details.lbmKg} kg</span>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl">
+                <span className="text-slate-400 block text-[9px] font-semibold">BMR الرياضي</span>
+                <span className="text-amber-300 font-bold">{details.bmrKatchValue} kcal</span>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl">
+                <span className="text-slate-400 block text-[9px] font-semibold">TDEE النشاط</span>
+                <span className="text-emerald-400 font-bold">{details.tdeeValue} kcal</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl text-[11px] text-slate-300 leading-relaxed space-y-1">
+              <p className="font-semibold text-purple-200 flex items-center gap-1">
+                <span>🔍 التوجيه العلمي الصارم لجسمك:</span>
+                <span className="text-amber-300 font-bold">{details.matrixRules.bodyFatCategoryLabel}</span>
+              </p>
+              <p className="text-[10px] text-slate-400">
+                {details.matrixRules.matrixRuleRationale}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 7-Day Horizontal Selector */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {weeklyPlan.map((day, idx) => {
@@ -209,7 +256,7 @@ export const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
         {/* Macro Targets Breakdown */}
         <div className="grid grid-cols-3 gap-3 pt-2">
           <div className="bg-slate-950 p-3 rounded-xl border border-amber-500/30 text-center">
-            <span className="text-[10px] text-slate-400 block mb-0.5">الكربوهيدرات</span>
+            <span className="text-[10px] text-slate-400 block mb-0.5">الكربوهيدرات (×{selectedDay.carbMultiplier || 1.0})</span>
             <span className="text-lg font-extrabold text-amber-400 font-mono">{selectedDay.carbs}g</span>
           </div>
           <div className="bg-slate-950 p-3 rounded-xl border border-emerald-500/30 text-center">
@@ -221,6 +268,14 @@ export const MealPlanScreen: React.FC<MealPlanScreenProps> = ({
             <span className="text-lg font-extrabold text-blue-400 font-mono">{selectedDay.fat}g</span>
           </div>
         </div>
+
+        {/* Scientific Rationale Banner for this Day */}
+        {selectedDay.scientificRationale && (
+          <div className="bg-purple-950/40 border border-purple-800/40 p-2.5 rounded-xl text-[11px] text-purple-200 leading-relaxed">
+            <span className="font-bold text-purple-300 block mb-0.5">🧪 التعليل الرياضي لهذه القيمة:</span>
+            {selectedDay.scientificRationale}
+          </div>
+        )}
 
         {/* Intra-day Carb Timing Breakdown */}
         <div className="bg-slate-950/90 p-3.5 rounded-xl border border-purple-500/20 space-y-2">
