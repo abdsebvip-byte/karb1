@@ -1,0 +1,6 @@
+{
+  "name": "CarbFlow AI – ذكاء الكارب سايكل",
+  "description": "تطبيق متكامل لحساب وتخطيط الكارب سايكل، التغذية، الصيام المتقطع، ومساعد الذكاء الاصطناعي",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
