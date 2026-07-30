@@ -98,7 +98,7 @@ export const AIScreen: React.FC<AIScreenProps> = ({ profile, todayPlan }) => {
               مساعد CarbFlow AI الذكي
               <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 rounded">متصل</span>
             </h3>
-            <p className="text-[10px] text-slate-400">مدعوم بـ Gemini 2.5 للتحليل الغذائي والتوجيه</p>
+            <p className="text-[10px] text-slate-400">مدعوم بـ Gemini 3.6 للتحليل الغذائي والتوجيه</p>
           </div>
         </div>
       </div>

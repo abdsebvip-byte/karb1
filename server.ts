@@ -65,7 +65,7 @@ app.post('/api/ai/chat', async (req, res) => {
 ممنوع استخدام أرقام عشوائية أو تخمينية. تحدث باللغة العربية بأسلوب علمي دقيق، مشجع، ومنسق بنقاط وأجوبة مباشرة.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         systemInstruction,
@@ -188,7 +188,7 @@ app.post('/api/ai/recipes', async (req, res) => {
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

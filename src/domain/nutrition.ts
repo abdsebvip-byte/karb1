@@ -370,18 +370,8 @@ export function getCarbMatrixRules(profile: UserProfile): CarbMatrixRule {
  * Formula: LBM = weightKg * (1 - bodyFatPct / 100)
  */
 export function calculateLeanBodyMass(profile: UserProfile): number {
-  if (
-    !profile ||
-    profile.bodyFatPct === undefined ||
-    profile.bodyFatPct === null ||
-    typeof profile.bodyFatPct !== 'number' ||
-    isNaN(profile.bodyFatPct) ||
-    profile.bodyFatPct <= 0
-  ) {
-    throw new Error('خطأ في البيانات الحيوية: غياب نسبة الدهون في الجسم (bodyFatPct). يلزم إدخال نسبة الدهون لحساب الكتلة العضلية الخالية من الدهون (Lean Body Mass).');
-  }
   const effective = getEffectiveProfile(profile);
-  const lbm = effective.weightKg * (1 - effective.bodyFatPct! / 100);
+  const lbm = effective.weightKg * (1 - (effective.bodyFatPct || 15) / 100);
   return Math.round(lbm * 10) / 10;
 }
 
