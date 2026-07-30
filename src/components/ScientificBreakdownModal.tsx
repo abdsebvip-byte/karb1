@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { getScientificBreakdownDetails, GOALS_MAP } from '../domain/nutrition';
-import { X, ShieldCheck, Calculator, Flame, Dumbbell, Activity, CheckCircle2, Info } from 'lucide-react';
+import { getScientificBreakdownDetails, SCIENTIFIC_CITATIONS } from '../domain/nutrition';
+import { X, ShieldCheck, Calculator, Flame, Dumbbell, Activity, CheckCircle2, BookOpen, Info } from 'lucide-react';
 
 interface ScientificBreakdownModalProps {
   profile: UserProfile;
@@ -323,6 +323,27 @@ export const ScientificBreakdownModal: React.FC<ScientificBreakdownModalProps> =
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+          {/* Peer-Reviewed Scientific References */}
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+            <h3 className="font-bold text-white text-xs flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-purple-400" />
+              المراجع والدراسات العلمية المحكمة (Peer-Reviewed Citations):
+            </h3>
+            <div className="space-y-2 text-[10px] text-slate-300">
+              {Object.entries(SCIENTIFIC_CITATIONS).map(([key, cite]) => (
+                <div key={key} className="bg-slate-900 border border-slate-800 p-2 rounded-xl space-y-0.5">
+                  <div className="flex items-center justify-between text-purple-300 font-bold">
+                    <span>{cite.authors} ({cite.year})</span>
+                    <span className="text-[9px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/80 font-mono">
+                      {cite.doiOrSource}
+                    </span>
+                  </div>
+                  <p className="font-semibold text-slate-200">{cite.title}</p>
+                  <p className="text-slate-400 text-[9.5px]">{cite.summary}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
