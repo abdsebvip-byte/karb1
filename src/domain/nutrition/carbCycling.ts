@@ -165,36 +165,51 @@ export function generateWeeklyCarbPlan(profile: UserProfile): DayPlan[] {
   });
 
   return assignedDays.map((d) => {
-    let carbsPerLbmRate = 2.5;
-    let fatPerLbmRate = 0.8;
+    let fatPerLbmRate = 0.85;
     let proteinPerLbmRate = GOALS_MAP[effective.goal]?.proteinMultiplierLBM || 2.4;
     let estimatedDepletion = 0;
     let eee = 0;
 
     const isLegsOrBack = d.workoutFocus.includes('أرجل') || d.workoutFocus.includes('ظهر');
 
+    // Calculate dynamic baseline carbs per kg LBM for the user's target goal
+    const goalConfig = GOALS_MAP[effective.goal] || GOALS_MAP.muscle;
+    const targetCalories = Math.max(1200, phys.adaptiveTdee + goalConfig.calorieDelta);
+    const baselineProteinG = phys.lbmKg * proteinPerLbmRate;
+    const baselineFatG = phys.lbmKg * fatPerLbmRate;
+    const baselineCarbG = Math.max(30, (targetCalories - (baselineProteinG * 4 + baselineFatG * 9)) / 4);
+    const baselineCarbPerLbm = baselineCarbG / phys.lbmKg;
+
+    const lookup = getCarbLookupEntry(effective);
+    let carbsPerLbmRate = baselineCarbPerLbm;
+
     if (d.type === 'high') {
-      carbsPerLbmRate = phys.obesityInsulinCapActive ? 2.4 : (isLegsOrBack ? 4.2 : 3.6);
-      fatPerLbmRate = 0.60;
+      const highMult = lookup.highCarbMultiplier * (isLegsOrBack ? 1.12 : 1.0);
+      carbsPerLbmRate = baselineCarbPerLbm * highMult;
+      fatPerLbmRate = 0.65;
       estimatedDepletion = isLegsOrBack ? phys.heavyLegWorkoutDepletionG : phys.upperBodyWorkoutDepletionG;
       eee = Math.round(phys.lbmKg * 4.8);
     } else if (d.type === 'medium') {
-      carbsPerLbmRate = phys.obesityInsulinCapActive ? 1.8 : 2.8;
-      fatPerLbmRate = 0.80;
+      carbsPerLbmRate = baselineCarbPerLbm * lookup.mediumCarbMultiplier;
+      fatPerLbmRate = 0.85;
       estimatedDepletion = phys.upperBodyWorkoutDepletionG;
       eee = Math.round(phys.lbmKg * 3.6);
     } else if (d.type === 'low') {
-      carbsPerLbmRate = phys.obesityInsulinCapActive ? 1.0 : 1.3;
-      fatPerLbmRate = 1.15; // Fat elevated on low carb days for hormone/androgen support
+      carbsPerLbmRate = baselineCarbPerLbm * lookup.lowCarbMultiplier;
+      fatPerLbmRate = 1.10; // Fat elevated on low carb days for hormone/androgen support
       proteinPerLbmRate += 0.15;
       estimatedDepletion = 0;
       eee = Math.round(phys.lbmKg * 1.5);
     } else if (d.type === 'refeed') {
-      carbsPerLbmRate = phys.obesityInsulinCapActive ? 3.0 : 5.4;
-      fatPerLbmRate = 0.40; // Minimal fat during refeed to drive insulin & glycogen storage
+      carbsPerLbmRate = baselineCarbPerLbm * lookup.refeedCarbMultiplier * 1.25;
+      fatPerLbmRate = 0.45; // Minimal fat during refeed to drive insulin & glycogen storage
       proteinPerLbmRate -= 0.2;
       estimatedDepletion = phys.heavyLegWorkoutDepletionG;
       eee = Math.round(phys.lbmKg * 4.2);
+    }
+
+    if (phys.obesityInsulinCapActive) {
+      carbsPerLbmRate = Math.min(2.5, carbsPerLbmRate);
     }
 
     let dayCarbs = Math.round(phys.lbmKg * carbsPerLbmRate);
